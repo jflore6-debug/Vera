@@ -65,8 +65,16 @@ func main() {
 	port := listener.Addr().(*net.TCPAddr).Port
 	url := "http://127.0.0.1:" + strconv.Itoa(port) + "/"
 
+	fileServer := http.FileServer(http.FS(root))
 	mux := http.NewServeMux()
-	mux.Handle("/", http.FileServer(http.FS(root)))
+	mux.HandleFunc("/__flor/ping", heartbeatHandler)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
+			serveIndexWithHeartbeat(root, w, r)
+			return
+		}
+		fileServer.ServeHTTP(w, r)
+	})
 	server := &http.Server{Handler: mux}
 
 	go func() {
@@ -81,6 +89,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	go watchHeartbeat(stop)
+
 	if browser := findAppBrowser(); browser != "" {
 		profileDir := chromeProfileDir()
 		cmd := exec.Command(browser,
@@ -89,12 +99,10 @@ func main() {
 			"--no-first-run",
 			"--no-default-browser-check",
 		)
-		if err := cmd.Start(); err == nil {
-			go func() {
-				_ = cmd.Wait()
-				stop()
-			}()
-		} else {
+		// Deliberately not waiting on this process: on macOS the browser
+		// can fork/re-exec, so it exiting doesn't mean the window closed.
+		// Shutdown is driven by watchHeartbeat instead.
+		if err := cmd.Start(); err != nil {
 			openInDefaultBrowser(url)
 		}
 	} else {
