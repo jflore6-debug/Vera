@@ -561,6 +561,48 @@ select {
   background: var(--flor-bg);
 }
 
+.flor-export-dropdown {
+  position: relative;
+}
+
+.flor-export-menu {
+  position: absolute;
+  top: 110%;
+  right: 0;
+  background: var(--flor-surface);
+  border: 1px solid var(--flor-border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  display: flex;
+  flex-direction: column;
+  min-width: 240px;
+  z-index: 30;
+  overflow: hidden;
+}
+
+.flor-export-menu button {
+  border: none;
+  background: transparent;
+  padding: 10px 14px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.flor-export-menu button:hover {
+  background: var(--flor-bg);
+}
+
+.flor-export-menu strong {
+  font-size: 13px;
+}
+
+.flor-export-menu span {
+  font-size: 11px;
+  color: var(--flor-muted);
+}
+
 .flor-canvas-wrap {
   flex: 1;
   display: flex;
@@ -620,6 +662,21 @@ select {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+}
+
+/* The bullet glyph is CSS-generated content, not text in the DOM — so it
+   can never end up baked into the stored content when this line is
+   edited (a real bug: editing used to capture the literal "• " prefix
+   into the saved text, then double up on every subsequent edit). */
+.flor-bullet-line {
+  position: relative;
+  padding-left: 1.15em;
+}
+
+.flor-bullet-line::before {
+  content: '•';
+  position: absolute;
+  left: 0.15em;
 }
 
 .flor-image {

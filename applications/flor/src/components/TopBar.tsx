@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDeckStore } from '../store/deckStore';
 import { exportDeckToPptx } from '../lib/exportPptx';
+import { exportDeckToPdf } from '../lib/exportPdf';
 import { importPptxFile } from '../lib/importPptx';
 
 export function TopBar() {
@@ -9,16 +10,29 @@ export function TopBar() {
   const setDeck = useDeckStore((s) => s.setDeck);
   const persist = useDeckStore((s) => s.persist);
   const importInput = useRef<HTMLInputElement>(null);
-  const [exporting, setExporting] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+  const [exporting, setExporting] = useState<'pptx' | 'pdf' | null>(null);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [importing, setImporting] = useState(false);
 
-  const handleExport = async () => {
-    setExporting(true);
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const onClickAway = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) setExportMenuOpen(false);
+    };
+    window.addEventListener('mousedown', onClickAway);
+    return () => window.removeEventListener('mousedown', onClickAway);
+  }, [exportMenuOpen]);
+
+  const handleExport = async (format: 'pptx' | 'pdf') => {
+    setExportMenuOpen(false);
+    setExporting(format);
     try {
       persist();
-      await exportDeckToPptx(deck);
+      if (format === 'pptx') await exportDeckToPptx(deck);
+      else await exportDeckToPdf(deck);
     } finally {
-      setExporting(false);
+      setExporting(null);
     }
   };
 
@@ -64,9 +78,27 @@ export function TopBar() {
         <button className="flor-btn" onClick={() => importInput.current?.click()} disabled={importing}>
           {importing ? 'Importing…' : 'Import .pptx'}
         </button>
-        <button className="flor-btn flor-btn--primary" onClick={handleExport} disabled={exporting}>
-          {exporting ? 'Exporting…' : '⬇ Download .pptx'}
-        </button>
+        <div className="flor-export-dropdown" ref={exportMenuRef}>
+          <button
+            className="flor-btn flor-btn--primary"
+            onClick={() => setExportMenuOpen((v) => !v)}
+            disabled={exporting !== null}
+          >
+            {exporting ? `Exporting ${exporting}…` : '⬇ Export ▾'}
+          </button>
+          {exportMenuOpen && (
+            <div className="flor-export-menu">
+              <button onClick={() => handleExport('pptx')}>
+                <strong>PowerPoint</strong>
+                <span>.pptx — editable in PowerPoint, Keynote, Slides</span>
+              </button>
+              <button onClick={() => handleExport('pdf')}>
+                <strong>PDF</strong>
+                <span>.pdf — fixed layout, ready to share or print</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

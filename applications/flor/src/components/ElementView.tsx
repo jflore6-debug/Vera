@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Rnd } from 'react-rnd';
 import type { SlideElement } from '../lib/types';
 import { PT_TO_PX, SLIDE_H, SLIDE_W } from '../lib/types';
+import { stripLeadingBulletGlyph } from '../lib/text';
 import { useDeckStore } from '../store/deckStore';
 
 interface Props {
@@ -109,9 +110,11 @@ export function ElementView({ slideId, element, selected, scale }: Props) {
                 element.verticalAlign === 'middle' ? 'center' : element.verticalAlign === 'bottom' ? 'flex-end' : 'flex-start',
             }}
           >
-            {element.bullet
-              ? element.content.split('\n').map((line, i) => <div key={i}>{'• ' + line}</div>)
-              : element.content.split('\n').map((line, i) => <div key={i}>{line}</div>)}
+            {element.content.split('\n').map((line, i) => (
+              <div key={i} className={element.bullet ? 'flor-bullet-line' : undefined}>
+                {element.bullet ? stripLeadingBulletGlyph(line) : line}
+              </div>
+            ))}
           </div>
         )}
 

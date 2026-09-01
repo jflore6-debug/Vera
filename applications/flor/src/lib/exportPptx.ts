@@ -1,6 +1,7 @@
 import PptxGenJS from 'pptxgenjs';
 import type { Deck, ShapeElement, Slide, TextElement, ImageElement } from './types';
 import { SLIDE_H_IN, SLIDE_W_IN } from './types';
+import { stripLeadingBulletGlyph } from './text';
 
 function pct(value: number, total: number): number {
   return (value / 100) * total;
@@ -10,8 +11,20 @@ function hex(color: string): string {
   return color.replace('#', '').toUpperCase();
 }
 
+// pptxgenjs adds its own bullet glyph via the `bullet` option below, so the
+// text content itself must be clean — strip any leading "•" left over from
+// content saved before bullets became a pure display decoration (see
+// stripLeadingBulletGlyph), or it would show up doubled.
+function bulletSafeContent(el: TextElement): string {
+  if (!el.bullet) return el.content;
+  return el.content
+    .split('\n')
+    .map(stripLeadingBulletGlyph)
+    .join('\n');
+}
+
 function addText(s: PptxGenJS.Slide, el: TextElement) {
-  s.addText(el.content, {
+  s.addText(bulletSafeContent(el), {
     x: pct(el.x, SLIDE_W_IN),
     y: pct(el.y, SLIDE_H_IN),
     w: pct(el.w, SLIDE_W_IN),
@@ -26,7 +39,14 @@ function addText(s: PptxGenJS.Slide, el: TextElement) {
     valign: el.verticalAlign ?? 'top',
     rotate: el.rotation ?? 0,
     breakLine: true,
-    autoFit: true,
+    // Deliberately no autoFit: it makes PowerPoint silently resize the
+    // shape to fit its text the moment the file is opened, which moves
+    // the box away from the position Flor computed — especially visible
+    // after editing content, since the resize kicks in based on whatever
+    // the new text naturally wants, not what Flor rendered. Flor's own
+    // canvas doesn't auto-resize boxes either (text overflows a
+    // too-small box instead), so leaving this off keeps the exported
+    // file consistent with what was actually shown in the editor.
   });
 }
 

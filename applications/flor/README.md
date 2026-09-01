@@ -19,8 +19,12 @@ reuse a library of layouts and images, save your work, and export a real
 - **Import** — open an existing `.pptx` to pull in its text and images as a
   starting point (best-effort: decorative shapes without text aren't
   reconstructed yet).
-- **Export** — "Download .pptx" generates a real PowerPoint file client-side
-  and downloads it, ready to open in PowerPoint, Keynote, or Google Slides.
+- **Export** — the Export menu offers PowerPoint (`.pptx`, generated
+  client-side with pptxgenjs, editable in PowerPoint/Keynote/Slides) or PDF
+  (`.pdf`, generated client-side with jsPDF as real vector text/shapes —
+  selectable, not a screenshot). Both mirror exactly what's on the canvas:
+  no auto-resizing boxes on open, no gap between what you edited and what
+  you get.
 - **Installable** — Flor is a PWA. Open it in Chrome/Edge and choose
   "Install Flor…" to add it to your Applications folder / Start menu / dock
   as a standalone app with its own icon and window, no browser chrome.
@@ -106,3 +110,12 @@ electron/       Main process for the optional Electron build (desktop:mac/win/li
   first stop), shadows/effects, animations, and inline mixed formatting
   within a single paragraph (Flor takes the lead run's style). Round-
   tripping a deck created *in* Flor is exact.
+- PDF export (`src/lib/exportPdf.ts`) draws real vector text/shapes rather
+  than rasterizing a screenshot, so it stays consistent with the editor by
+  construction, but fonts are substituted to the closest of the three PDF
+  base families (serif/sans/monospace) since embedding arbitrary web fonts
+  isn't implemented; shape rotation isn't supported (jsPDF has no direct
+  rotation param for vector shapes — text and images do rotate); and a
+  rotated *multi-line* text box rotates each line around its own position
+  rather than the block as a whole. Unrotated text/images/shapes (the
+  common case) are unaffected.
