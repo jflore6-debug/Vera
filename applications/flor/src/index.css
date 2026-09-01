@@ -607,7 +607,10 @@ select {
   height: 100%;
   padding: 4px;
   outline: none;
-  overflow: hidden;
+  /* PowerPoint text boxes don't clip by default (only normAutofit/spAutoFit
+     shrink or resize them, which Flor doesn't implement yet) — text that
+     doesn't fit the box overflows visually rather than getting cut off. */
+  overflow: visible;
   cursor: grab;
 }
 

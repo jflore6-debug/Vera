@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
 import { v4 as uuid } from 'uuid';
-import type { Deck, Slide, SlideElement } from './types';
+import type { Deck, Slide, SlideElement, ShapeKind } from './types';
 import { makeDeck } from './factory';
 
 function parseXml(text: string): Document {
@@ -87,10 +87,97 @@ function extractText(sp: Element): { text: string; bullet: boolean } {
   return { text: lines.join('\n'), bullet };
 }
 
-function extractFirstColor(sp: Element): string | null {
-  const clr = sp.getElementsByTagName('a:srgbClr')[0];
-  const val = clr?.getAttribute('val');
-  return val ? `#${val}` : null;
+// Direct-child solidFill lookup (not a descendant search), so we don't
+// accidentally pick up a color that belongs to a run, a line, or a shadow.
+function directChildColor(parent: Element | null, childTag: string): string | null {
+  if (!parent) return null;
+  for (const child of Array.from(parent.children)) {
+    if (child.tagName === childTag) {
+      const srgb = child.getElementsByTagName('a:srgbClr')[0];
+      const val = srgb?.getAttribute('val');
+      return val ? `#${val}` : null;
+    }
+  }
+  return null;
+}
+
+function firstDirectChild(parent: Element | null, tag: string): Element | null {
+  if (!parent) return null;
+  for (const child of Array.from(parent.children)) {
+    if (child.tagName === tag) return child;
+  }
+  return null;
+}
+
+interface RunStyle {
+  fontSize: number;
+  bold: boolean;
+  italic: boolean;
+  fontFamily?: string;
+  color: string;
+}
+
+// Styling comes from the first run in the shape's text body (paragraph and
+// run-level formatting can vary per-run, but Flor's text elements only
+// carry one style, so we take the lead run as representative).
+function extractRunStyle(sp: Element): RunStyle {
+  const defaults: RunStyle = { fontSize: 18, bold: false, italic: false, color: '#1f2430' };
+  const txBody = sp.getElementsByTagName('p:txBody')[0];
+  if (!txBody) return defaults;
+  const rPr = txBody.getElementsByTagName('a:r')[0]?.getElementsByTagName('a:rPr')[0] ?? txBody.getElementsByTagName('a:endParaRPr')[0];
+  if (!rPr) return defaults;
+
+  const szAttr = rPr.getAttribute('sz');
+  const fontSize = szAttr ? Math.round(Number(szAttr)) / 100 : defaults.fontSize;
+  const bold = rPr.getAttribute('b') === '1';
+  const italic = rPr.getAttribute('i') === '1';
+  const typeface = rPr.getElementsByTagName('a:latin')[0]?.getAttribute('typeface') ?? undefined;
+  const color = directChildColor(rPr, 'a:solidFill') ?? defaults.color;
+
+  return {
+    fontSize: fontSize > 0 ? fontSize : defaults.fontSize,
+    bold,
+    italic,
+    fontFamily: typeface,
+    color,
+  };
+}
+
+function extractAlign(sp: Element): 'left' | 'center' | 'right' {
+  const algn = sp.getElementsByTagName('a:pPr')[0]?.getAttribute('algn');
+  if (algn === 'ctr') return 'center';
+  if (algn === 'r') return 'right';
+  return 'left';
+}
+
+const GEOM_TO_SHAPE: Record<string, ShapeKind> = {
+  rect: 'rect',
+  roundRect: 'roundRect',
+  round2SameRect: 'roundRect',
+  round2DiagRect: 'roundRect',
+  ellipse: 'ellipse',
+  triangle: 'triangle',
+  line: 'line',
+  straightConnector1: 'line',
+  bentConnector2: 'line',
+  bentConnector3: 'line',
+};
+
+function extractShapeGeometry(spPr: Element | null): { shape: ShapeKind; fill: string; stroke?: string } {
+  const prst = spPr?.getElementsByTagName('a:prstGeom')[0]?.getAttribute('prst') ?? 'rect';
+  const shape = GEOM_TO_SHAPE[prst] ?? 'rect';
+
+  // OOXML default (absent a p:style/a:fillRef, which we don't resolve): a
+  // shape with no explicit <a:solidFill> or <a:noFill> renders unfilled,
+  // not some arbitrary color.
+  const explicitFill = directChildColor(spPr, 'a:solidFill');
+  const fill = explicitFill ?? 'transparent';
+
+  const ln = firstDirectChild(spPr, 'a:ln');
+  const lnHasNoFill = !!firstDirectChild(ln, 'a:noFill');
+  const stroke = lnHasNoFill ? undefined : (directChildColor(ln, 'a:solidFill') ?? undefined);
+
+  return { shape, fill, stroke };
 }
 
 export async function importPptxFile(file: File): Promise<Deck> {
@@ -135,22 +222,46 @@ export async function importPptxFile(file: File): Promise<Deck> {
           const spPr = child.getElementsByTagName('p:spPr')[0] ?? null;
           const box = xfrmBox(spPr, slideWEmu, slideHEmu);
           const { text, bullet } = extractText(child);
-          if (!text.trim()) continue;
-          const txBody = child.getElementsByTagName('p:txBody')[0];
-          const color = (txBody && extractFirstColor(txBody)) || '#1f2430';
-          elements.push({
-            id: uuid(),
-            type: 'text',
-            x: box.x,
-            y: box.y,
-            w: box.w,
-            h: box.h,
-            content: text,
-            fontSize: 18,
-            color,
-            align: 'left',
-            bullet,
-          });
+          if (text.trim()) {
+            const style = extractRunStyle(child);
+            elements.push({
+              id: uuid(),
+              type: 'text',
+              x: box.x,
+              y: box.y,
+              w: box.w,
+              h: box.h,
+              content: text,
+              fontSize: style.fontSize,
+              color: style.color,
+              align: extractAlign(child),
+              bold: style.bold,
+              italic: style.italic,
+              fontFamily: style.fontFamily,
+              bullet,
+            });
+          } else {
+            // No text: this is a decorative shape (divider, card background,
+            // accent box). Reconstruct it so the slide keeps its visual
+            // structure instead of just losing the shape entirely.
+            const geo = extractShapeGeometry(spPr);
+            if (geo.fill === 'transparent' && !geo.stroke) continue;
+            // A "line" shape has no area — its color lives on the stroke
+            // (a:ln), but Flor renders/exports a line using `fill`. Use the
+            // stroke color as the line's fill so it's actually visible.
+            const fill = geo.shape === 'line' ? (geo.stroke ?? geo.fill) : geo.fill;
+            elements.push({
+              id: uuid(),
+              type: 'shape',
+              x: box.x,
+              y: box.y,
+              w: box.w,
+              h: Math.max(box.h, 0.3),
+              shape: geo.shape,
+              fill,
+              stroke: geo.stroke,
+            });
+          }
         } else if (child.tagName === 'p:pic') {
           const spPr = child.getElementsByTagName('p:spPr')[0] ?? null;
           const box = xfrmBox(spPr, slideWEmu, slideHEmu);
@@ -178,7 +289,8 @@ export async function importPptxFile(file: File): Promise<Deck> {
 
     let background = '#ffffff';
     const bg = slideDoc.getElementsByTagName('p:bg')[0];
-    const bgColor = bg ? extractFirstColor(bg) : null;
+    const bgPr = bg ? firstDirectChild(bg, 'p:bgPr') : null;
+    const bgColor = bgPr ? directChildColor(bgPr, 'a:solidFill') : null;
     if (bgColor) background = bgColor;
 
     slides.push({ id: uuid(), background, elements });
