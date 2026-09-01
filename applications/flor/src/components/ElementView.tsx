@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Rnd } from 'react-rnd';
 import type { SlideElement } from '../lib/types';
-import { SLIDE_H, SLIDE_W } from '../lib/types';
+import { PT_TO_PX, SLIDE_H, SLIDE_W } from '../lib/types';
 import { useDeckStore } from '../store/deckStore';
 
 interface Props {
@@ -79,44 +79,48 @@ export function ElementView({ slideId, element, selected, scale }: Props) {
       className={`flor-el ${selected ? 'flor-el--selected' : ''}`}
       style={{ zIndex: selected ? 5 : 1 }}
     >
-      {element.type === 'text' && (
-        <div
-          ref={textRef}
-          className="flor-text"
-          contentEditable={editing}
-          suppressContentEditableWarning
-          onDoubleClick={(e) => {
-            e.stopPropagation();
-            setEditing(true);
-            requestAnimationFrame(() => textRef.current?.focus());
-          }}
-          onBlur={() => {
-            if (!editing) return;
-            setEditing(false);
-            const text = textRef.current?.innerText ?? element.content;
-            updateElement(slideId, element.id, { content: text });
-          }}
-          style={{
-            fontSize: element.fontSize,
-            color: element.color,
-            textAlign: element.align,
-            fontWeight: element.bold ? 700 : 400,
-            fontStyle: element.italic ? 'italic' : 'normal',
-            fontFamily: element.fontFamily,
-            cursor: editing ? 'text' : 'grab',
-          }}
-        >
-          {element.bullet
-            ? element.content.split('\n').map((line, i) => <div key={i}>{'• ' + line}</div>)
-            : element.content.split('\n').map((line, i) => <div key={i}>{line}</div>)}
-        </div>
-      )}
+      <div className="flor-el__rotate" style={{ transform: element.rotation ? `rotate(${element.rotation}deg)` : undefined }}>
+        {element.type === 'text' && (
+          <div
+            ref={textRef}
+            className="flor-text"
+            contentEditable={editing}
+            suppressContentEditableWarning
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              setEditing(true);
+              requestAnimationFrame(() => textRef.current?.focus());
+            }}
+            onBlur={() => {
+              if (!editing) return;
+              setEditing(false);
+              const text = textRef.current?.innerText ?? element.content;
+              updateElement(slideId, element.id, { content: text });
+            }}
+            style={{
+              fontSize: element.fontSize * PT_TO_PX,
+              color: element.color,
+              textAlign: element.align,
+              fontWeight: element.bold ? 700 : 400,
+              fontStyle: element.italic ? 'italic' : 'normal',
+              fontFamily: element.fontFamily,
+              cursor: editing ? 'text' : 'grab',
+              justifyContent:
+                element.verticalAlign === 'middle' ? 'center' : element.verticalAlign === 'bottom' ? 'flex-end' : 'flex-start',
+            }}
+          >
+            {element.bullet
+              ? element.content.split('\n').map((line, i) => <div key={i}>{'• ' + line}</div>)
+              : element.content.split('\n').map((line, i) => <div key={i}>{line}</div>)}
+          </div>
+        )}
 
-      {element.type === 'image' && (
-        <img src={element.src} alt="" className="flor-image" draggable={false} />
-      )}
+        {element.type === 'image' && (
+          <img src={element.src} alt="" className="flor-image" draggable={false} />
+        )}
 
-      {element.type === 'shape' && <div style={shapeStyle(element.fill, element.stroke, element.shape)} />}
+        {element.type === 'shape' && <div style={shapeStyle(element.fill, element.stroke, element.shape)} />}
+      </div>
 
       {selected && !editing && (
         <button

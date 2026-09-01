@@ -19,7 +19,7 @@ export function SlideThumbnail({ slide }: { slide: Slide }) {
             {el.type === 'text' && (
               <div
                 style={{
-                  fontSize: Math.max(4, el.fontSize / 6),
+                  fontSize: Math.max(4, el.fontSize / 8), // /6 thumbnail scale folded with the pt->px factor (0.75)
                   color: el.color,
                   textAlign: el.align,
                   fontWeight: el.bold ? 700 : 400,

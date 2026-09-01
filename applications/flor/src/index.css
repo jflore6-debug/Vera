@@ -583,6 +583,11 @@ select {
   border: 1.5px solid transparent;
 }
 
+.flor-el__rotate {
+  width: 100%;
+  height: 100%;
+}
+
 .flor-el--selected {
   border-color: var(--flor-pink) !important;
 }
@@ -612,6 +617,9 @@ select {
      doesn't fit the box overflows visually rather than getting cut off. */
   overflow: visible;
   cursor: grab;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 }
 
 .flor-image {

@@ -23,7 +23,7 @@ function addText(s: PptxGenJS.Slide, el: TextElement) {
     italic: !!el.italic,
     fontFace: (el.fontFamily || 'Arial').split(',')[0].trim(),
     bullet: el.bullet ? { code: '2022' } : false,
-    valign: 'top',
+    valign: el.verticalAlign ?? 'top',
     rotate: el.rotation ?? 0,
     breakLine: true,
     autoFit: true,

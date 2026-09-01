@@ -55,8 +55,8 @@ export function PropertiesPanel() {
           <label className="flor-field-label">Font size</label>
           <input
             type="range"
-            min={10}
-            max={80}
+            min={8}
+            max={96}
             value={element.fontSize}
             onChange={(e) => updateElement(slide.id, element.id, { fontSize: Number(e.target.value) })}
           />
@@ -88,6 +88,18 @@ export function PropertiesPanel() {
                 onClick={() => updateElement(slide.id, element.id, { align: a })}
               >
                 {a}
+              </button>
+            ))}
+          </div>
+          <label className="flor-field-label">Vertical align</label>
+          <div className="flor-btn-row">
+            {(['top', 'middle', 'bottom'] as const).map((v) => (
+              <button
+                key={v}
+                className={`flor-toggle ${(element.verticalAlign ?? 'top') === v ? 'is-active' : ''}`}
+                onClick={() => updateElement(slide.id, element.id, { verticalAlign: v })}
+              >
+                {v}
               </button>
             ))}
           </div>

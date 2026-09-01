@@ -95,6 +95,14 @@ electron/       Main process for the optional Electron build (desktop:mac/win/li
 
 - Everything is local to the browser (IndexedDB + localStorage) — there is
   no backend and no sync between devices.
-- Import is best-effort: text and images come through positioned reasonably
-  close to the original; complex layouts, animations, and non-text shapes
-  are not reconstructed. Round-tripping a deck created *in* Flor is exact.
+- Import reconstructs, per shape: real font size/bold/italic/font family/
+  color (including theme colors, `a:schemeClr`), horizontal and vertical
+  text alignment, rotation, decorative shapes (dividers, card backgrounds)
+  and their fill/stroke, tables (as a grid of cells), grouped shapes
+  (`p:grpSp`, recursively), and placeholder position/size inherited from
+  the slide layout/master when a shape doesn't set its own. `fontSize` is
+  always real points, matching PowerPoint and the `.pptx` export exactly.
+  Not reconstructed: gradients (approximated as a flat color from the
+  first stop), shadows/effects, animations, and inline mixed formatting
+  within a single paragraph (Flor takes the lead run's style). Round-
+  tripping a deck created *in* Flor is exact.
