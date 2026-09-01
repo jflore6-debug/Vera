@@ -39,11 +39,24 @@ func findAppBrowser() string {
 	return ""
 }
 
-func main() {
-	root, err := fs.Sub(webapp, "webapp")
+// resolveRoot picks the latest available web app: a self-updated copy on
+// disk if one was fetched successfully (this launch or a previous one), or
+// else the baseline embedded in the binary at build time.
+func resolveRoot() fs.FS {
+	if dir := resolveWebappDir(); dir != "" {
+		log.Printf("flor: serving self-updated web app from %s", dir)
+		return os.DirFS(dir)
+	}
+	embedded, err := fs.Sub(webapp, "webapp")
 	if err != nil {
 		log.Fatalf("flor: broken embedded app bundle: %v", err)
 	}
+	log.Print("flor: serving the embedded baseline web app")
+	return embedded
+}
+
+func main() {
+	root := resolveRoot()
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
