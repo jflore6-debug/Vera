@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	updateBaseURL         = "https://raw.githubusercontent.com/jflore6-debug/vera/claude/flor-pptx-editor-v1-ng0z8i/applications/flor/update"
+	updateBaseURL         = "https://raw.githubusercontent.com/jflore6-debug/vera/main/applications/flor/update"
 	updateCheckTimeout    = 1500 * time.Millisecond
 	updateDownloadTimeout = 15 * time.Second
 	updateMaxZipBytes     = 32 << 20 // 32MB safety cap
