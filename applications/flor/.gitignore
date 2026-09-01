@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Desktop packaging build outputs (regenerate with scripts/build-mac-app.sh
+# or npm run desktop:mac/win/linux) — not checked in, too large for git.
+release
+native/build
+native/webapp
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

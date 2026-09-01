@@ -24,6 +24,8 @@ reuse a library of layouts and images, save your work, and export a real
 - **Installable** — Flor is a PWA. Open it in Chrome/Edge and choose
   "Install Flor…" to add it to your Applications folder / Start menu / dock
   as a standalone app with its own icon and window, no browser chrome.
+- **Native macOS app** — `Flor.app`, a real double-clickable app for
+  `/Applications` with the Flor icon. See "Desktop app (macOS)" below.
 
 ## Getting started
 
@@ -38,6 +40,41 @@ Once you're running it (dev or preview), open it in Chrome or Edge and look
 for the install icon in the address bar (or the browser menu → "Install
 Flor…") to add it as a standalone app.
 
+## Desktop app (macOS)
+
+`Flor.app` is a real app bundle for `/Applications`: click its icon and it
+opens Flor in its own window, no terminal, no dev server. It's built from
+`native/main.go` — a tiny (~6 MB) Go binary with the built web app embedded
+via `go:embed`. On launch it serves the app on a local port and opens it in
+Chrome/Edge/Brave's app mode (`--app=`) for a chromeless, native-looking
+window; if none of those are installed it falls back to opening the app in
+your default browser as a normal tab. It ships as a universal binary
+(Apple Silicon + Intel) at about 5–13 MB, unlike an Electron build of the
+same app (which bundles a full Chromium and runs 300+ MB).
+
+Build it:
+
+```bash
+./scripts/build-mac-app.sh
+```
+
+This produces `release/Flor.app` and `release/Flor-mac.zip`. Unzip (if
+needed), drag `Flor.app` into `/Applications`, and click its icon to open
+it. Saved projects live in the app-mode browser profile at
+`~/Library/Application Support/Flor/chrome-profile`, so they persist
+across launches.
+
+Since the app isn't signed/notarized with an Apple Developer certificate,
+macOS Gatekeeper will block the first launch ("Flor can't be opened
+because Apple cannot check it for malicious software"). Right-click (or
+Control-click) `Flor.app` → **Open** → **Open** in the dialog, and macOS
+remembers your choice from then on.
+
+There's also a heavier, fully-bundled alternative if you'd rather ship a
+self-contained Electron app (no dependency on Chrome/Edge being
+installed): `npm run desktop:mac` (or `desktop:win` / `desktop:linux`),
+which uses `electron-builder` and the config in `package.json`.
+
 ## Project structure
 
 ```
@@ -48,6 +85,10 @@ src/
   lib/          Data model, pptx export (pptxgenjs) and import (JSZip),
                 IndexedDB persistence (idb-keyval)
 public/icons/   App icon source (icon.svg) and generated PWA/favicon assets
+build/          Generated .icns/.ico/.png app icons (from public/icons/icon.svg)
+native/         Go source for the macOS launcher (native/main.go)
+scripts/        build-mac-app.sh and the Info.plist/launcher.sh it assembles
+electron/       Main process for the optional Electron build (desktop:mac/win/linux)
 ```
 
 ## Notes on v1 scope
